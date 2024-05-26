@@ -51,6 +51,12 @@
         :websocketUrl="'wss://pergamentai.onrender.com/ws'"
         class="w-full max-w-xl mt-8"
       />
+      <DownloadButton 
+        v-if="showNotionButton" 
+        @click="downloadMarkdown" 
+        text="Download Markdown"
+        class="mt-4"
+      />
       <button 
         v-if="showNotionButton" 
         @click="createNotionDoc" 
@@ -73,11 +79,13 @@
 import axios from 'axios';
 import Chat from '../components/Chat.vue';
 import Header from '../components/Header.vue';
+import DownloadButton from '../components/DownloadButton.vue';
 
 export default {
   components: {
     Chat,
-    Header
+    Header,
+    DownloadButton
   },
   data() {
     return {
@@ -147,6 +155,28 @@ export default {
         }
       } catch (error) {
         this.message = 'Failed to create Notion document. Please try again.';
+        this.messageClass = 'bg-red-500 text-white';
+      }
+    },
+    async downloadMarkdown() {
+      try {
+        const response = await axios.post('https://pergamentai.onrender.com/download-markdown/', {
+          summary: this.summary
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          responseType: 'blob'
+        });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'summary.md');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        this.message = 'Failed to download Markdown. Please try again.';
         this.messageClass = 'bg-red-500 text-white';
       }
     }

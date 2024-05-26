@@ -25,9 +25,12 @@
         <div v-if="summary" class="mt-4 p-4 rounded bg-gray-50 w-full max-w-xl">
           <h3 class="text-xl font-bold mb-2">Video Summary</h3>
           <p>{{ summary }}</p>
-          <button class="button mt-4" @click="downloadMarkdown">
-            Download Markdown
-          </button>
+          <DownloadButton 
+            v-if="showDownloadButton" 
+            @click="downloadMarkdown" 
+            text="Download Markdown"
+            class="mt-4"
+          />
         </div>
         <Chat 
           v-if="showChat" 
@@ -49,11 +52,13 @@
   import axios from 'axios';
   import Chat from '../components/Chat.vue';
   import Header from '../components/Header.vue';
+  import DownloadButton from '../components/DownloadButton.vue';
   
   export default {
     components: {
       Chat,
-      Header
+      Header,
+      DownloadButton
     },
     data() {
       return {
@@ -62,6 +67,7 @@
         messageClass: '',
         summary: '',
         showChat: false,
+        showDownloadButton: true,
       };
     },
     methods: {
@@ -91,6 +97,7 @@
             this.message = 'Summary fetched successfully!';
             this.messageClass = 'bg-green-500 text-white';
             this.showChat = true;
+            this.showDownloadButton = true;
           }
         } catch (error) {
           if (error.response && error.response.status === 422) {
@@ -103,7 +110,9 @@
       },
       async downloadMarkdown() {
         try {
-          const response = await axios.get('https://pergamentai.onrender.com/download-markdown/', { responseType: 'blob' });
+          const response = await axios.get('https://pergamentai.onrender.com/download-markdown/', {
+            responseType: 'blob'
+          });
           const url = window.URL.createObjectURL(new Blob([response.data]));
           const link = document.createElement('a');
           link.href = url;
