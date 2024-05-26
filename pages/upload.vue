@@ -97,7 +97,7 @@ export default {
       formData.append('file', this.file);
 
       try {
-        const response = await axios.post('https://pergamentai.onrender.com:10000/process-pdf/', formData, {
+        const response = await axios.post('https://pergamentai.onrender.com/process-pdf/', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -116,7 +116,7 @@ export default {
       }
     },
     connectWebSocket() {
-      this.websocket = new WebSocket('wss://pergamentai.onrender.com:10000/ws');
+      this.websocket = new WebSocket('wss://pergamentai.onrender.com/ws');
 
       this.websocket.onmessage = (event) => {
         this.chatMessages.push({ sender: 'Server', text: event.data });
@@ -139,7 +139,7 @@ export default {
     },
     async createNotionDoc() {
       try {
-        const response = await axios.post('https://pergamentai.onrender.com:10000/send-to-notion');
+        const response = await axios.post('https://pergamentai.onrender.com/send-to-notion');
         if (response.status === 200) {
           this.message = 'Notion document created successfully!';
           this.messageClass = 'bg-green-500 text-white';
