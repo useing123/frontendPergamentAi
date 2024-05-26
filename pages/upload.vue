@@ -1,68 +1,67 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-    <header class="w-full bg-white shadow">
-      <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <h1 class="text-3xl font-bold text-gray-900">
-          Upload PDF and Chat
-        </h1>
-      </div>
-    </header>
-    <main class="flex flex-1 flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <h2 class="text-2xl font-extrabold text-gray-900 mb-4">
+  <div class="min-h-screen flex flex-col items-center justify-center bg-white text-gray-900">
+    <Header />
+    <main class="flex flex-1 flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto">
+      <h2 class="text-2xl font-bold mb-4">
         Upload your PDF file
       </h2>
-      <form @submit.prevent="uploadPDF" class="w-full max-w-md mb-8">
-        <div class="mb-4">
-          <input 
-            type="file" 
-            @change="handleFileChange" 
-            accept="application/pdf" 
-            class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none"
-          />
-        </div>
-        <div class="mb-4">
-          <button 
-            type="submit" 
-            :disabled="!file" 
-            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
-          >
-            Upload
-          </button>
-        </div>
-      </form>
+      <div 
+        @dragover.prevent="onDragOver"
+        @dragleave.prevent="onDragLeave"
+        @drop.prevent="onDrop"
+        :class="['w-full max-w-xl mb-8 border-2 border-dashed rounded-lg p-6', isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50']"
+        class="flex flex-col items-center justify-center"
+      >
+        <p class="text-center text-gray-600 mb-4">
+          Drag and drop your PDF here, or click to select a file
+        </p>
+        <input 
+          type="file" 
+          @change="handleFileChange" 
+          accept="application/pdf" 
+          class="hidden" 
+          ref="fileInput"
+        />
+        <button 
+          class="button" 
+          @click="triggerFileInput"
+        >
+          Choose File
+        </button>
+      </div>
+      <div v-if="file" class="mb-4 text-gray-700">
+        Selected file: {{ file.name }}
+      </div>
+      <div class="mb-4">
+        <button 
+          type="button" 
+          :disabled="!file" 
+          class="button"
+          @click="uploadPDF"
+        >
+          Upload
+        </button>
+      </div>
       <div v-if="message" :class="messageClass" class="mt-4 p-4 rounded">
         {{ message }}
       </div>
-      <div v-if="showChat" class="mt-8 w-full max-w-md">
-        <h3 class="text-xl font-bold text-gray-900 mb-2">Chat</h3>
-        <div class="border p-4 rounded mb-4 h-64 overflow-y-auto bg-white" ref="chatContainer">
-          <div v-for="(msg, index) in chatMessages" :key="index" class="mb-2">
-            <span class="font-semibold">{{ msg.sender }}:</span> {{ msg.text }}
-          </div>
-        </div>
-        <form @submit.prevent="sendMessage" class="flex items-center">
-          <input 
-            type="text" 
-            v-model="newMessage" 
-            placeholder="Type a message" 
-            class="flex-1 border border-gray-300 rounded-lg px-4 py-2 mr-2 focus:outline-none"
-          />
-          <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Send
-          </button>
-        </form>
-      </div>
+      <div v-if="uploading" class="text-blue-500 mt-4">Uploading...</div>
+      <Chat 
+        v-if="showChat" 
+        :websocketUrl="'wss://pergamentai.onrender.com/ws'"
+        class="w-full max-w-xl mt-8"
+      />
       <button 
         v-if="showNotionButton" 
         @click="createNotionDoc" 
-        class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mt-4"
+        class="button mt-4"
       >
         Create Notion Document
       </button>
     </main>
-    <footer class="w-full bg-white shadow py-4">
+    <footer class="w-full bg-white border-t border-gray-300 py-4">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <p class="text-center text-gray-500">
+        <p class="text-center">
           &copy; 2024 Your Company. All rights reserved.
         </p>
       </div>
@@ -72,29 +71,52 @@
 
 <script>
 import axios from 'axios';
+import Chat from '../components/Chat.vue';
+import Header from '../components/Header.vue';
 
 export default {
+  components: {
+    Chat,
+    Header
+  },
   data() {
     return {
       file: null,
       message: '',
       messageClass: '',
-      chatMessages: [],
-      newMessage: '',
       showChat: false,
       showNotionButton: false,
-      websocket: null
+      uploading: false,
+      isDragging: false,
     };
   },
   methods: {
     handleFileChange(event) {
       this.file = event.target.files[0];
     },
+    triggerFileInput() {
+      this.$refs.fileInput.click();
+    },
+    onDragOver() {
+      this.isDragging = true;
+    },
+    onDragLeave() {
+      this.isDragging = false;
+    },
+    onDrop(event) {
+      const files = event.dataTransfer.files;
+      if (files.length) {
+        this.file = files[0];
+      }
+      this.isDragging = false;
+    },
     async uploadPDF() {
       if (!this.file) return;
 
       const formData = new FormData();
       formData.append('file', this.file);
+
+      this.uploading = true;
 
       try {
         const response = await axios.post('https://pergamentai.onrender.com/process-pdf/', formData, {
@@ -108,34 +130,13 @@ export default {
           this.messageClass = 'bg-green-500 text-white';
           this.showChat = true;
           this.showNotionButton = true;
-          this.connectWebSocket();
         }
       } catch (error) {
         this.message = 'Upload failed. Please try again.';
         this.messageClass = 'bg-red-500 text-white';
+      } finally {
+        this.uploading = false;
       }
-    },
-    connectWebSocket() {
-      this.websocket = new WebSocket('wss://pergamentai.onrender.com/ws');
-
-      this.websocket.onmessage = (event) => {
-        this.chatMessages.push({ sender: 'Server', text: event.data });
-        this.scrollToBottom();
-      };
-    },
-    sendMessage() {
-      if (this.newMessage.trim() === '') return;
-
-      this.chatMessages.push({ sender: 'You', text: this.newMessage });
-      this.websocket.send(this.newMessage);
-      this.newMessage = '';
-      this.scrollToBottom();
-    },
-    scrollToBottom() {
-      this.$nextTick(() => {
-        const chatContainer = this.$refs.chatContainer;
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-      });
     },
     async createNotionDoc() {
       try {
@@ -149,15 +150,22 @@ export default {
         this.messageClass = 'bg-red-500 text-white';
       }
     }
-  },
-  beforeDestroy() {
-    if (this.websocket) {
-      this.websocket.close();
-    }
   }
 };
 </script>
 
 <style scoped>
-/* Дополнительные стили, если нужно */
+/* Consistent button styling inspired by Notion */
+.button {
+  background-color: #2b6cb0;
+  color: white;
+  font-weight: bold;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.button:hover {
+  background-color: #2c5282;
+}
 </style>
